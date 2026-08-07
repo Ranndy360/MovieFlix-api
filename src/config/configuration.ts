@@ -1,5 +1,7 @@
 import { registerAs } from '@nestjs/config';
 
+import { normalizeOrigin } from '../common/cors/origin-matcher';
+
 import { Environment } from './env.validation';
 
 export interface AppConfig {
@@ -86,9 +88,11 @@ export const appConfig = registerAs('app', (): AppConfig => ({
   port: num(process.env.PORT, 3001),
   apiPrefix: process.env.API_PREFIX ?? 'api',
   apiVersion: process.env.API_VERSION ?? '1',
+  // Normalised on the way in: a URL pasted from a hosting dashboard carries a
+  // trailing slash, and an exact string comparison would never match it.
   corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
     .split(',')
-    .map((origin) => origin.trim())
+    .map((origin) => normalizeOrigin(origin))
     .filter(Boolean),
   logLevel: process.env.LOG_LEVEL ?? 'log',
 }));

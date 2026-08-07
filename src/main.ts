@@ -12,6 +12,7 @@ import { AppModule } from './app.module';
 import type { AppConfig, SwaggerConfig } from './config/configuration';
 import { setupSwagger } from './config/swagger.setup';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { isOriginAllowed } from './common/cors/origin-matcher';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
@@ -29,11 +30,35 @@ async function bootstrap(): Promise<void> {
   // which the rate limiter and session audit trail both depend on.
   app.set('trust proxy', 1);
 
+  const corsLogger = new Logger('Cors');
+  corsLogger.log(`Allowed origins: ${corsOrigins.join(', ') || '(none)'}`);
+
   // `credentials: true` with an explicit origin allow-list is what lets the
-  // browser send our httpOnly auth cookies. A wildcard origin is invalid here,
-  // and that restriction is a large part of the CSRF defense.
+  // browser send our httpOnly auth cookies. `Access-Control-Allow-Origin: *`
+  // is invalid alongside credentials, and that restriction is a large part of
+  // the CSRF defense.
   app.enableCors({
-    origin: corsOrigins,
+    origin: (origin, callback) => {
+      // No `Origin` header at all: curl, a health probe, or a server-to-server
+      // call such as a Next.js rewrite. There is nothing to authorize and no
+      // header to echo back.
+      if (!origin) return callback(null, true);
+
+      if (isOriginAllowed(origin, corsOrigins)) return callback(null, true);
+
+      // Rejecting silently is why a misconfigured allow-list costs an evening:
+      // the browser only says "preflight did not succeed" and the server says
+      // nothing at all. Say it out loud, with both sides of the comparison.
+      corsLogger.warn(
+        `Blocked ${origin} — not in the allow-list [${corsOrigins.join(', ')}]. ` +
+          'Set CORS_ORIGINS to the exact scheme + host, no trailing slash.',
+      );
+
+      // `false`, not an Error: the response is then a plain preflight without
+      // the allow headers, which is what the spec expects. An Error would turn
+      // it into a 500 and bury the reason.
+      callback(null, false);
+    },
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
   });
