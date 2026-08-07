@@ -12,6 +12,8 @@ export interface AppConfig {
   apiVersion: string;
   corsOrigins: string[];
   logLevel: string;
+  /** Budget for the readiness probe's database ping. */
+  healthDbTimeoutMs: number;
 }
 
 export interface DatabaseConfig {
@@ -96,6 +98,7 @@ export const appConfig = registerAs('app', (): AppConfig => ({
     .map((origin) => normalizeOrigin(origin))
     .filter(Boolean),
   logLevel: process.env.LOG_LEVEL ?? 'log',
+  healthDbTimeoutMs: num(process.env.HEALTH_DB_TIMEOUT_MS, 5000),
 }));
 
 export const databaseConfig = registerAs('database', (): DatabaseConfig => {
