@@ -122,7 +122,11 @@ export const databaseConfig = registerAs('database', (): DatabaseConfig => {
 });
 
 export const swaggerConfig = registerAs('swagger', (): SwaggerConfig => ({
-  enabled: bool(process.env.SWAGGER_ENABLED, true),
+  // Off in production unless asked for. The docs describe every endpoint, its
+  // payloads and its auth requirements — useful to a developer and equally
+  // useful to someone probing the surface. Opting in is the safer default;
+  // forgetting to opt out is not.
+  enabled: bool(process.env.SWAGGER_ENABLED, process.env.NODE_ENV !== 'production'),
   path: process.env.SWAGGER_PATH ?? 'docs',
 }));
 
