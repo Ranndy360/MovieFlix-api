@@ -100,25 +100,6 @@ async function bootstrap(): Promise<void> {
 
   app.enableShutdownHooks();
 
-  /*
-   * Say who asked us to stop.
-   *
-   * A container that boots, serves its health check and then dies leaves an
-   * ambiguous log: a platform stopping it on purpose and a process being killed
-   * look identical from the outside. Naming the signal separates "the platform
-   * decided to replace or sleep this instance" from "something killed us", and
-   * an exit with no signal at all points at the process ending on its own.
-   */
-  for (const signal of ['SIGTERM', 'SIGINT'] as const) {
-    process.on(signal, () => {
-      new Logger('Bootstrap').warn(`Received ${signal} — shutting down.`);
-    });
-  }
-
-  process.on('beforeExit', (code) => {
-    new Logger('Bootstrap').warn(`Event loop empty, exiting with code ${code}.`);
-  });
-
   setupSwagger(app);
 
   // '0.0.0.0', not the default loopback-friendly bind: a container platform
@@ -128,7 +109,10 @@ async function bootstrap(): Promise<void> {
   await app.listen(port, '0.0.0.0');
 
   const logger = new Logger('Bootstrap');
-  logger.log(`MovieFlix API listening on http://localhost:${port}/${apiPrefix}/v${apiVersion}`);
+  // The literal bind, not a friendly URL: in a container "which address and
+  // port is it actually on" is the question this line exists to answer, and
+  // `localhost` answered a different one.
+  logger.log(`MovieFlix API listening on 0.0.0.0:${port} (prefix /${apiPrefix}/v${apiVersion})`);
   if (swagger.enabled) {
     logger.log(`OpenAPI docs on http://localhost:${port}/${swagger.path}`);
   }
