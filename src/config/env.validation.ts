@@ -1,4 +1,6 @@
 import { plainToInstance, Transform } from 'class-transformer';
+
+import { parseDatabaseUrl } from './database-url';
 import {
   IsBoolean,
   IsEnum,
@@ -60,9 +62,20 @@ export class EnvironmentVariables {
 
   /* ---------------- database ---------------- */
 
+  /**
+   * A managed Postgres injects one URL rather than five variables. When it is
+   * present the discrete ones below become optional; `validateEnv` then checks
+   * that at least one of the two forms is complete.
+   */
+  @Transform(emptyToUndefined)
+  @IsOptional()
+  @IsString()
+  DATABASE_URL?: string;
+
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  DB_HOST!: string;
+  DB_HOST?: string;
 
   @Transform(({ value }) => Number(value))
   @IsInt()
@@ -70,16 +83,19 @@ export class EnvironmentVariables {
   @Max(65535)
   DB_PORT = 5432;
 
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  DB_USERNAME!: string;
+  DB_USERNAME?: string;
 
+  @IsOptional()
   @IsString()
-  DB_PASSWORD!: string;
+  DB_PASSWORD?: string;
 
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  DB_NAME!: string;
+  DB_NAME?: string;
 
   @Transform(toBoolean)
   @IsBoolean()
@@ -307,13 +323,56 @@ export function validateEnv(config: Record<string, unknown>): EnvironmentVariabl
     whitelist: false,
   });
 
-  if (errors.length > 0) {
-    const details = errors
-      .map((error) => `  - ${error.property}: ${Object.values(error.constraints ?? {}).join(', ')}`)
-      .join('\n');
+  const details = [
+    ...errors.map(
+      (error) => `  - ${error.property}: ${Object.values(error.constraints ?? {}).join(', ')}`,
+    ),
+    // Merged into the same report rather than thrown separately: fixing one
+    // variable only to be told about the next is how a deploy takes an hour.
+    ...databaseIssues(validated),
+  ];
 
-    throw new Error(`Invalid environment configuration:\n${details}`);
+  if (details.length > 0) {
+    throw new Error(`Invalid environment configuration:\n${details.join('\n')}`);
   }
 
   return validated;
+}
+
+/**
+ * Either `DATABASE_URL` or the full set of discrete variables — decided here
+ * rather than with `@IsNotEmpty` on each field, because whether one is required
+ * depends on whether the other form was supplied.
+ *
+ * Worth the explicit check: get it wrong and the app throws during bootstrap,
+ * the platform sees the process exit, restarts it, and reports only that the
+ * container stopped — while the browser blames CORS. Nothing in that chain
+ * mentions the database.
+ */
+function databaseIssues(env: EnvironmentVariables): string[] {
+  if (env.DATABASE_URL) {
+    return parseDatabaseUrl(env.DATABASE_URL)
+      ? []
+      : [
+          '  - DATABASE_URL: not a usable Postgres URL. Expected ' +
+            'postgresql://user:password@host:5432/database',
+        ];
+  }
+
+  const missing = (
+    [
+      ['DB_HOST', env.DB_HOST],
+      ['DB_USERNAME', env.DB_USERNAME],
+      ['DB_NAME', env.DB_NAME],
+    ] as const
+  )
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+
+  return missing.length === 0
+    ? []
+    : [
+        `  - ${missing.join(', ')}: required unless DATABASE_URL is set. ` +
+          'On a managed Postgres, set DATABASE_URL and leave these unset.',
+      ];
 }
