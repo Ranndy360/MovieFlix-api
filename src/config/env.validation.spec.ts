@@ -121,4 +121,62 @@ describe('validateEnv', () => {
       expect(result.COOKIE_SAME_SITE).toBe('lax');
     });
   });
+
+  describe('the database can be configured two ways', () => {
+    const secrets = {
+      NODE_ENV: 'test',
+      JWT_ACCESS_SECRET: 'a'.repeat(32),
+      JWT_REFRESH_SECRET: 'b'.repeat(32),
+    };
+
+    it('accepts a single DATABASE_URL, with no discrete variables', () => {
+      // What a managed Postgres injects. Requiring DB_HOST here is what made
+      // the container exit at boot, which the platform then reported only as
+      // "container stopped".
+      const result = validateEnv({
+        ...secrets,
+        DATABASE_URL: 'postgresql://postgres:s3cret@host.railway.app:6543/railway',
+      });
+
+      expect(result.DATABASE_URL).toContain('railway');
+      expect(result.DB_HOST).toBeUndefined();
+    });
+
+    it('still accepts the discrete variables on their own', () => {
+      const result = validateEnv({
+        ...secrets,
+        DB_HOST: 'localhost',
+        DB_USERNAME: 'movieflix',
+        DB_NAME: 'movieflix',
+      });
+
+      expect(result.DB_HOST).toBe('localhost');
+    });
+
+    it('names exactly what is missing when neither form is complete', () => {
+      expect(() => validateEnv({ ...secrets, DB_HOST: 'localhost' })).toThrow(
+        /DB_USERNAME, DB_NAME: required unless DATABASE_URL is set/,
+      );
+    });
+
+    it('rejects a DATABASE_URL that will not connect', () => {
+      expect(() => validateEnv({ ...secrets, DATABASE_URL: 'mysql://u:p@h:3306/app' })).toThrow(
+        /DATABASE_URL: not a usable Postgres URL/,
+      );
+    });
+
+    it('reports the database alongside every other problem, not after them', () => {
+      // One deploy, one list. Being told about the next variable only after
+      // fixing the last one is how a five-minute change takes an hour.
+      let message = '';
+      try {
+        validateEnv({ NODE_ENV: 'test' });
+      } catch (error) {
+        message = (error as Error).message;
+      }
+
+      expect(message).toMatch(/JWT_ACCESS_SECRET/);
+      expect(message).toMatch(/DB_HOST, DB_USERNAME, DB_NAME/);
+    });
+  });
 });

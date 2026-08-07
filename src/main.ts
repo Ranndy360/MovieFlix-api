@@ -92,7 +92,11 @@ async function bootstrap(): Promise<void> {
 
   setupSwagger(app);
 
-  await app.listen(port);
+  // '0.0.0.0', not the default loopback-friendly bind: a container platform
+  // reaches the process from outside the container, and a health check that
+  // cannot connect is reported as "container stopped" rather than as a bind
+  // problem.
+  await app.listen(port, '0.0.0.0');
 
   const logger = new Logger('Bootstrap');
   logger.log(`MovieFlix API listening on http://localhost:${port}/${apiPrefix}/v${apiVersion}`);

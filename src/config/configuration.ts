@@ -2,6 +2,7 @@ import { registerAs } from '@nestjs/config';
 
 import { normalizeOrigin } from '../common/cors/origin-matcher';
 
+import { parseDatabaseUrl } from './database-url';
 import { Environment } from './env.validation';
 
 export interface AppConfig {
@@ -97,17 +98,25 @@ export const appConfig = registerAs('app', (): AppConfig => ({
   logLevel: process.env.LOG_LEVEL ?? 'log',
 }));
 
-export const databaseConfig = registerAs('database', (): DatabaseConfig => ({
-  host: process.env.DB_HOST ?? 'localhost',
-  port: num(process.env.DB_PORT, 5432),
-  username: process.env.DB_USERNAME ?? 'movieflix',
-  password: process.env.DB_PASSWORD ?? 'movieflix',
-  database: process.env.DB_NAME ?? 'movieflix',
-  ssl: bool(process.env.DB_SSL, false),
-  logging: bool(process.env.DB_LOGGING, false),
-  synchronize: bool(process.env.DB_SYNCHRONIZE, false),
-  poolMax: num(process.env.DB_POOL_MAX, 10),
-}));
+export const databaseConfig = registerAs('database', (): DatabaseConfig => {
+  // The discrete variables still win when both are present, so a deployment
+  // can point at a different database than the one the platform injected.
+  const url = parseDatabaseUrl(process.env.DATABASE_URL);
+
+  return {
+    host: process.env.DB_HOST ?? url?.host ?? 'localhost',
+    port: process.env.DB_PORT ? num(process.env.DB_PORT, 5432) : (url?.port ?? 5432),
+    username: process.env.DB_USERNAME ?? url?.username ?? 'movieflix',
+    password: process.env.DB_PASSWORD ?? url?.password ?? 'movieflix',
+    database: process.env.DB_NAME ?? url?.database ?? 'movieflix',
+    // Managed Postgres is reached over the public internet and requires TLS;
+    // the URL carries no hint of that, so default it on when a URL was used.
+    ssl: process.env.DB_SSL ? bool(process.env.DB_SSL, false) : url !== null,
+    logging: bool(process.env.DB_LOGGING, false),
+    synchronize: bool(process.env.DB_SYNCHRONIZE, false),
+    poolMax: num(process.env.DB_POOL_MAX, 10),
+  };
+});
 
 export const swaggerConfig = registerAs('swagger', (): SwaggerConfig => ({
   enabled: bool(process.env.SWAGGER_ENABLED, true),
