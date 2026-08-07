@@ -60,6 +60,15 @@ export class EnvironmentVariables {
   @IsNotEmpty()
   CORS_ORIGINS = 'http://localhost:3000';
 
+  /**
+   * How long the readiness probe waits for the database. The first ping after
+   * a deploy is the slow one — connection, TLS and pool warm-up all land on it.
+   */
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(100)
+  HEALTH_DB_TIMEOUT_MS = 5000;
+
   /* ---------------- database ---------------- */
 
   /**
