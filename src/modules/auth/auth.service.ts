@@ -222,7 +222,7 @@ export class AuthService {
     return UserResponseDto.fromEntity(user);
   }
 
-  /** Housekeeping for a cron/worker: drop rows that can no longer be used. */
+  /** Drops rows that can no longer be used. Driven by `RefreshTokenCleanupService`. */
   async pruneExpiredTokens(now: Date = new Date()): Promise<number> {
     return this.refreshTokenModel.destroy({
       where: { [Op.or]: [{ expiresAt: { [Op.lt]: now } }, { revokedAt: { [Op.ne]: null } }] },

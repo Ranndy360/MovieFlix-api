@@ -10,6 +10,7 @@ import { AuthService } from './auth.service';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { PasswordModule } from './password.module';
 import { AuthCookieService } from './services/auth-cookie.service';
+import { RefreshTokenCleanupService } from './services/refresh-token-cleanup.service';
 import { TokenService } from './services/token.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
@@ -25,7 +26,13 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     JwtModule.register({}),
   ],
   controllers: [AuthController],
-  providers: [AuthService, TokenService, AuthCookieService, JwtStrategy],
+  providers: [
+    AuthService,
+    TokenService,
+    AuthCookieService,
+    JwtStrategy,
+    RefreshTokenCleanupService,
+  ],
   // PasswordModule is re-exported so anything importing AuthModule still
   // gets PasswordService — the provider itself now lives there.
   exports: [AuthService, TokenService, PasswordModule],

@@ -219,6 +219,16 @@ export class EnvironmentVariables {
   @Min(1)
   AUTH_THROTTLE_LIMIT = 10;
 
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(1)
+  AUTH_REGISTER_THROTTLE_LIMIT = 5;
+
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  @Min(1)
+  AUTH_REFRESH_THROTTLE_LIMIT = 30;
+
   /* ---------------- object storage (Supabase) ---------------- */
 
   /**
