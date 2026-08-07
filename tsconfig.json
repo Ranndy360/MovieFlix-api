@@ -1,0 +1,55 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "moduleResolution": "node",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    /**
+     * Required: decorator-based libraries (sequelize-typescript, class-validator)
+     * break when class fields are emitted with `Object.defineProperty` semantics.
+     */
+    "useDefineForClassFields": false,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "incremental": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+
+    /* ---- strict mode: every flag on ---- */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "useUnknownInCatchVariables": true,
+
+    /* ---- extra safety beyond `strict` ---- */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "forceConsistentCasingInFileNames": true,
+    "noPropertyAccessFromIndexSignature": false,
+    /**
+     * Intentionally off: `exactOptionalPropertyTypes` fights every
+     * `Partial<T>` / optional-DTO pattern in Nest without buying real safety here.
+     */
+    "exactOptionalPropertyTypes": false
+  },
+  "include": ["src/**/*", "test/**/*", "jest.config.ts", "eslint.config.mjs"],
+  "exclude": ["node_modules", "dist", "coverage"]
+}

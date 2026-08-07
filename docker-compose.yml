@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: movieflix-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: movieflix
+      POSTGRES_PASSWORD: movieflix
+      POSTGRES_DB: movieflix
+    ports:
+      - '5432:5432'
+    volumes:
+      - movieflix-pgdata:/var/lib/postgresql/data
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/10-init-test-db.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U movieflix -d movieflix']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  movieflix-pgdata:
