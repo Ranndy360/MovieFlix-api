@@ -21,7 +21,17 @@ async function bootstrap(): Promise<void> {
   const { port, apiPrefix, apiVersion, corsOrigins } = configService.getOrThrow<AppConfig>('app');
   const swagger = configService.getOrThrow<SwaggerConfig>('swagger');
 
-  app.use(helmet());
+  /*
+   * `crossOriginResourcePolicy` relaxed on purpose.
+   *
+   * Bare `helmet()` sends `Cross-Origin-Resource-Policy: same-origin`, and a
+   * browser honours that *after* the CORS check passes — so a correctly
+   * allow-listed origin still has the response withheld from it. The failure
+   * surfaces as a blocked request, which reads like a CORS problem and is not
+   * one. Only relevant because the API is consumed from another origin; behind
+   * a same-origin proxy it would make no difference.
+   */
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(compression());
   // Required: the JWT strategy and the auth controller read tokens from cookies.
   app.use(cookieParser());
