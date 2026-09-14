@@ -1,9 +1,25 @@
 const path = require('node:path');
 
-require('dotenv').config({
-  path: path.resolve(__dirname, `.env.${process.env.NODE_ENV || 'development'}`),
-});
-require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+/*
+ * `.env` files are a local-development convenience, not a deployment mechanism:
+ * in a container the environment is already the environment. `dotenv` is a
+ * devDependency, so a production install does not have it — loading it
+ * unguarded made `sequelize-cli` die with "Cannot find module 'dotenv'" the
+ * moment migrations ran anywhere the dev dependencies had been pruned.
+ */
+function loadEnvFiles() {
+  let dotenv;
+  try {
+    dotenv = require('dotenv');
+  } catch {
+    return;
+  }
+
+  dotenv.config({ path: path.resolve(__dirname, `.env.${process.env.NODE_ENV || 'development'}`) });
+  dotenv.config({ path: path.resolve(__dirname, '.env') });
+}
+
+loadEnvFiles();
 
 module.exports = {
   config: path.resolve(__dirname, 'database', 'config.js'),

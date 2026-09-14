@@ -104,6 +104,73 @@ createdb movieflix && createdb movieflix_test
 npm run db:migrate
 ```
 
+## Running in Docker
+
+Two different jobs, two different files.
+
+**The whole stack** — database, API and web client — lives in the repository
+root and is the fastest way to see the product running:
+
+```bash
+cd ..                 # the directory holding MovieFlix-api and MovieFlix
+docker compose up -d --build
+```
+
+That brings up Postgres, runs the migrations and seeders, and serves the API on
+<http://localhost:3001/api/v1> and the web client on <http://localhost:3000>.
+Sign in with the seeded accounts listed above.
+
+```bash
+docker compose logs -f api     # follow the API, migrations included
+docker compose ps              # health of each service
+docker compose down            # stop
+docker compose down -v         # stop and discard the database volume
+```
+
+**This service alone**, when you want to build or run just the API:
+
+```bash
+docker build -t movieflix-api .
+
+docker run --rm -p 3001:3001 \
+  -e DATABASE_URL=postgresql://movieflix:movieflix@host.docker.internal:5432/movieflix \
+  -e DB_SSL=false \
+  -e JWT_ACCESS_SECRET=at-least-32-characters-long-secret \
+  -e JWT_REFRESH_SECRET=a-different-secret-also-32-chars \
+  -e CORS_ORIGINS=http://localhost:3000 \
+  movieflix-api
+```
+
+### What the image does and does not do
+
+The default `CMD` **serves only**. Migrations are a deployment step, not
+something every replica should race to perform on boot — with more than one
+instance they would run the same `CREATE TABLE` against each other. Run them as
+a one-off instead:
+
+```bash
+docker compose run --rm api npm run db:migrate
+docker compose run --rm api npm run db:seed
+```
+
+The root `docker-compose.yml` overrides `CMD` with `node scripts/deploy-start.js`,
+which migrates and then serves, because a single-instance local stack has no
+race to lose and "clone it and it works" is worth more there.
+
+### Notes on the image
+
+- **Debian slim, not Alpine.** `bcrypt` and `sharp` are native modules with
+  prebuilt binaries for glibc; musl either lacks a prebuild or needs a compiler
+  in the final image. Alpine saves ~60MB and costs a toolchain.
+- **Multi-stage.** The shipped layer carries `dist/`, production dependencies,
+  `database/` and `scripts/` — no TypeScript, no Nest CLI, no test suite.
+- **Runs as the unprivileged `node` user.** Nothing in here needs root.
+- **`HEALTHCHECK` hits `/health/liveness`**, not `/health/readiness`: readiness
+  touches the database, and a container is not unhealthy because something it
+  depends on is briefly unreachable.
+- **`.dockerignore` excludes every `.env`.** A secret baked into a layer
+  survives every later deletion of the file.
+
 ## Scripts
 
 ```bash
