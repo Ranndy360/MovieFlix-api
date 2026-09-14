@@ -1,0 +1,38 @@
+# Keeping the build context small is a speed win; keeping secrets out of it is
+# the point. Anything listed here is invisible to `COPY . .`.
+
+# Never. A leaked .env inside an image layer survives every later deletion.
+.env
+.env.*
+!.env.example
+
+node_modules
+dist
+coverage
+
+.git
+.gitignore
+.github
+
+# Test and tooling surface: the build stage compiles, it does not lint or test.
+**/*.spec.ts
+**/*.test.ts
+**/*.test.tsx
+test
+jest.config.ts
+eslint.config.mjs
+
+# Local editor and OS noise.
+.vscode
+.idea
+.DS_Store
+*.log
+npm-debug.log*
+
+# Documentation does not belong in a runtime image.
+README.md
+CLAUDE.md
+
+Dockerfile
+.dockerignore
+docker-compose.yml
